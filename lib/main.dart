@@ -21,7 +21,7 @@ class NootApp extends StatelessWidget {
       theme: buildNootTheme(),
       // Di layar lebar (browser desktop) aplikasi tampil sebagai kolom selebar ponsel.
       builder: (context, child) => ColoredBox(
-        color: const Color(0xFFE6EDF9),
+        color: NootColors.navy,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),

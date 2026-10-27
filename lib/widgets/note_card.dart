@@ -5,120 +5,112 @@ import '../models/note.dart';
 import '../theme.dart';
 import '../utils/format.dart';
 
+/// Kartu catatan: bidang warna datar. Tinggi kartu mengikuti panjang isi,
+/// dan catatan berprioritas tinggi mendapat sudut kanan atas yang terlipat.
 class NoteCard extends StatelessWidget {
   const NoteCard({
     super.key,
     required this.note,
     required this.onTap,
-    required this.onEdit,
-    required this.onDelete,
+    required this.onLongPress,
   });
 
   final Note note;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final tone = toneOf(note.tone);
-    final prioritas = note.priority.clamp(0, 2).toInt();
+    final tinggi = note.priority >= 2;
 
     return Material(
       color: tone.bg,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(6),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(170),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  kIkonKategori[note.category] ?? Icons.notes_rounded,
-                  color: tone.accent,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+        onLongPress: onLongPress,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(right: tinggi ? 18 : 0),
+                    child: Text(
                       note.title,
-                      maxLines: 1,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: nootText(20, weight: FontWeight.w700, height: 1.18),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            formatTanggal(note.createdAt),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              color: NootColors.muted,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: kPrioritasWarna[prioritas],
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          kPrioritasNama[prioritas],
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: NootColors.muted,
-                          ),
-                        ),
-                      ],
+                  ),
+                  if (note.content.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      note.content,
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                      style: nootText(15.5, height: 1.4),
                     ),
                   ],
-                ),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Menu catatan',
-                icon: const Icon(Icons.more_vert_rounded, color: NootColors.muted),
-                color: Colors.white,
-                onSelected: (value) {
-                  if (value == 'ubah') onEdit();
-                  if (value == 'hapus') onDelete();
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'ubah', child: Text('Ubah')),
-                  PopupMenuItem(
-                    value: 'hapus',
-                    child: Text(
-                      'Hapus',
-                      style: TextStyle(color: NootColors.danger),
-                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${note.category} · ${tanggalRingkas(note.createdAt, DateTime.now())}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: nootText(14, style: FontStyle.italic),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            if (tinggi)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Semantics(
+                  label: 'Prioritas tinggi',
+                  child: CustomPaint(
+                    size: const Size(24, 24),
+                    painter: _SudutTerlipat(tone.fold),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// Sudut kanan atas yang terlipat ke dalam. Bagian yang terpotong memakai warna
+/// latar halaman, jadi Beranda harus berlatar NootColors.ground.
+class _SudutTerlipat extends CustomPainter {
+  _SudutTerlipat(this.fold);
+
+  final Color fold;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final potong = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(potong, Paint()..color = NootColors.ground);
+
+    final lipat = Path()
+      ..moveTo(0, 0)
+      ..lineTo(0, size.height)
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(lipat, Paint()..color = fold);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SudutTerlipat oldDelegate) =>
+      oldDelegate.fold != fold;
 }

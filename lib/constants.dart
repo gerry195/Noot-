@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Nama yang tampil di sapaan Beranda. Ganti sesuai namamu.
-const String kUserName = 'Sobat Noot';
+/// Logo aplikasi. File ini juga menjadi sumber ikon PWA di folder web/icons.
+const String kLogoAsset = 'assets/noot app logo.png';
 
 const List<String> kKategori = [
   'Penting',
@@ -11,36 +11,27 @@ const List<String> kKategori = [
   'Belanja',
 ];
 
-const Map<String, IconData> kIkonKategori = {
-  'Penting': Icons.star_rounded,
-  'Pribadi': Icons.favorite_rounded,
-  'Kerja': Icons.work_rounded,
-  'Kuliah': Icons.menu_book_rounded,
-  'Belanja': Icons.shopping_bag_rounded,
-};
+const String kKategoriAwal = 'Pribadi';
 
 const List<String> kPrioritasNama = ['Rendah', 'Sedang', 'Tinggi'];
 
-const List<Color> kPrioritasWarna = [
-  Color(0xFF12A37C),
-  Color(0xFFE0A100),
-  Color(0xFFE5484D),
-];
-
+/// Warna kartu catatan. Semuanya diambil dari bagian pensil di logo:
+/// badan pensil (kuning), penghapus (merah muda), ujung kayu, dan pita logam.
+/// [fold] adalah warna sisi gelap, dipakai untuk sudut terlipat.
 class NoteTone {
-  const NoteTone(this.name, this.bg, this.accent);
+  const NoteTone(this.name, this.bg, this.fold);
 
   final String name;
   final Color bg;
-  final Color accent;
+  final Color fold;
 }
 
 const List<NoteTone> kTones = [
-  NoteTone('Langit', Color(0xFFE3F0FF), Color(0xFF3B82F6)),
-  NoteTone('Mint', Color(0xFFDDF5EC), Color(0xFF12A37C)),
-  NoteTone('Kuning', Color(0xFFFFF3CD), Color(0xFFE0A100)),
-  NoteTone('Merah muda', Color(0xFFFFE3EC), Color(0xFFE5487A)),
-  NoteTone('Ungu', Color(0xFFEBE4FF), Color(0xFF7C5CE0)),
+  NoteTone('Kuning', Color(0xFFF6C948), Color(0xFFE4A621)),
+  NoteTone('Merah muda', Color(0xFFF4929F), Color(0xFFDB6E85)),
+  NoteTone('Biru', Color(0xFF9FCDF5), Color(0xFF6FAEE6)),
+  NoteTone('Kayu', Color(0xFFF4D5A6), Color(0xFFE3B982)),
+  NoteTone('Abu', Color(0xFFCBD1DF), Color(0xFFA9B3C7)),
 ];
 
 NoteTone toneOf(int index) =>

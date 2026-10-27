@@ -18,3 +18,18 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/noot app logo.png
+
+  fonts:
+    - family: Pagella
+      fonts:
+        - asset: assets/fonts/texgyrepagella-regular.otf
+        - asset: assets/fonts/texgyrepagella-italic.otf
+          style: italic
+        - asset: assets/fonts/texgyrepagella-bold.otf
+          weight: 700
+        - asset: assets/fonts/texgyrepagella-bolditalic.otf
+          weight: 700
+          style: italic

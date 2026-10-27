@@ -29,14 +29,21 @@ void main() {
     expect(formatTanggal(DateTime(2026, 10, 19)), '19 Oktober 2026');
   });
 
+  test('formatHariTanggal menambahkan nama hari', () {
+    // 27 Oktober 2026 jatuh pada hari Selasa.
+    expect(formatHariTanggal(DateTime(2026, 10, 27)), 'Selasa, 27 Oktober 2026');
+  });
+
   test('formatJam memakai dua digit dan titik', () {
     expect(formatJam(DateTime(2026, 10, 19, 9, 5)), '09.05');
   });
 
-  test('salam mengikuti jam', () {
-    expect(salam(DateTime(2026, 1, 1, 8)), 'Selamat pagi');
-    expect(salam(DateTime(2026, 1, 1, 13)), 'Selamat siang');
-    expect(salam(DateTime(2026, 1, 1, 16)), 'Selamat sore');
-    expect(salam(DateTime(2026, 1, 1, 20)), 'Selamat malam');
+  test('tanggalRingkas memakai Hari ini, Kemarin, lalu tanggal singkat', () {
+    final sekarang = DateTime(2026, 10, 27, 10, 0);
+
+    expect(tanggalRingkas(DateTime(2026, 10, 27, 0, 5), sekarang), 'Hari ini');
+    expect(tanggalRingkas(DateTime(2026, 10, 26, 23, 59), sekarang), 'Kemarin');
+    expect(tanggalRingkas(DateTime(2026, 10, 19, 9, 30), sekarang), '19 Okt');
+    expect(tanggalRingkas(DateTime(2025, 12, 31), sekarang), '31 Des 2025');
   });
 }

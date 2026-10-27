@@ -4,6 +4,9 @@ import '../theme.dart';
 import '../widgets/noot_logo.dart';
 import 'login_screen.dart';
 
+/// Splash: latar navy yang sama dengan latar logo, jadi pensil tampak melayang.
+/// Seluruh isi berada tepat di tengah. Garis kuning di bawah nama tergambar dari
+/// kiri ke kanan seperti goresan pensil, lalu aplikasi pindah ke Login.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -14,25 +17,23 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _fade;
-  late final Animation<double> _scale;
+  late final Animation<double> _muncul;
+  late final Animation<double> _garis;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 2200),
     );
-    _fade = CurvedAnimation(
+    _muncul = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0, 0.3, curve: Curves.easeOut),
+      curve: const Interval(0, 0.35, curve: Curves.easeOut),
     );
-    _scale = Tween<double>(begin: 0.8, end: 1).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0, 0.4, curve: Curves.easeOutBack),
-      ),
+    _garis = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.25, 0.85, curve: Curves.easeInOut),
     );
     _controller.addStatusListener(_onStatus);
     _controller.forward();
@@ -42,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (status != AnimationStatus.completed || !mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: const Duration(milliseconds: 350),
         pageBuilder: (_, __, ___) => const LoginScreen(),
         transitionsBuilder: (_, animation, __, child) =>
             FadeTransition(opacity: animation, child: child),
@@ -59,106 +60,53 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFE3EEFF)],
+      backgroundColor: NootColors.navy,
+      body: SizedBox.expand(
+        child: Center(
+          child: FadeTransition(
+            opacity: _muncul,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const NootLogo(size: 156),
+                const SizedBox(height: 8),
+                Text(
+                  'Noot',
+                  style: nootText(
+                    52,
+                    weight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: 104,
+                  height: 5,
+                  child: AnimatedBuilder(
+                    animation: _garis,
+                    builder: (_, __) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: _garis.value,
+                        child: const ColoredBox(color: NootColors.yellow),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'catatan harian',
+                  style: nootText(
+                    17,
+                    style: FontStyle.italic,
+                    color: const Color(0xCCFFFFFF),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -70,
-              right: -60,
-              child: _Lingkaran(diameter: 220, alpha: 40),
-            ),
-            Positioned(
-              bottom: -90,
-              left: -80,
-              child: _Lingkaran(diameter: 280, alpha: 28),
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  const Spacer(flex: 5),
-                  FadeTransition(
-                    opacity: _fade,
-                    child: ScaleTransition(
-                      scale: _scale,
-                      child: Column(
-                        children: const [
-                          NootLogo(size: 108),
-                          SizedBox(height: 22),
-                          Text(
-                            'Noot',
-                            style: TextStyle(
-                              fontSize: 44,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Catat cepat. Temukan lagi kapan saja.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: NootColors.muted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(flex: 4),
-                  SizedBox(
-                    width: 140,
-                    child: AnimatedBuilder(
-                      animation: _controller,
-                      builder: (_, __) => ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _controller.value,
-                          minHeight: 6,
-                          backgroundColor: const Color(0xFFD6E4FF),
-                          color: NootColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Menyiapkan catatanmu',
-                    style: TextStyle(fontSize: 12.5, color: NootColors.muted),
-                  ),
-                  const SizedBox(height: 36),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Lingkaran extends StatelessWidget {
-  const _Lingkaran({required this.diameter, required this.alpha});
-
-  final double diameter;
-  final int alpha;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: NootColors.primary.withAlpha(alpha),
       ),
     );
   }

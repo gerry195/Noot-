@@ -73,11 +73,21 @@ class NoteStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Catatan awal yang muncul saat aplikasi dibuka pertama kali.
+  /// Catatan awal yang muncul saat aplikasi dibuka pertama kali. Panjangnya sengaja
+  /// berbeda-beda supaya susunan kartu di Beranda terlihat seperti pemakaian nyata.
+  /// Indeks warna mengikuti `kTones`: 0 Kuning, 1 Merah muda, 2 Biru, 3 Kayu, 4 Abu.
   List<Note> _contoh() {
     final sekarang = DateTime.now();
-    Note buat(int hariLalu, String id, String judul, String isi, String kategori,
-        int warna, int prioritas) {
+
+    Note buat(
+      int hariLalu,
+      String id,
+      String judul,
+      String isi,
+      String kategori,
+      int warna,
+      int prioritas,
+    ) {
       return Note(
         id: id,
         title: judul,
@@ -97,25 +107,27 @@ class NoteStore extends ChangeNotifier {
         'Membuat aplikasi catatan sederhana dengan fitur kategori, warna, dan prioritas. '
             'Dipakai untuk mencatat ide, rencana, dan hal penting sehari-hari.',
         'Penting',
-        2,
+        0,
         2,
       ),
       buat(
         1,
         'contoh-2',
         'Rencana Minggu Ini',
-        'Senin: kumpulkan tugas. Rabu: latihan presentasi. Jumat: rapikan catatan kuliah.',
+        'Senin: kumpulkan tugas.\nRabu: latihan presentasi.\nJumat: rapikan catatan kuliah.',
         'Kerja',
-        1,
+        2,
         1,
       ),
       buat(
         2,
         'contoh-3',
-        'Catatan Kuliah',
-        'Fase perancangan: buat wireframe dulu, lalu tentukan warna dan tipografi sebelum menulis kode.',
+        'Catatan Kuliah: Fase Perancangan',
+        'Buat wireframe dulu, baru tentukan warna dan huruf. Setiap layar harus punya satu '
+            'tujuan yang jelas. Kerjakan layar yang paling sering dipakai lebih dulu, '
+            'lalu samakan jarak, ukuran huruf, dan bentuk tombol di semua layar.',
         'Kuliah',
-        4,
+        1,
         1,
       ),
       buat(
@@ -133,7 +145,7 @@ class NoteStore extends ChangeNotifier {
         'Jurnal Harian',
         'Hari ini selesai mengerjakan bagian login. Besok lanjut ke halaman tambah catatan.',
         'Pribadi',
-        0,
+        4,
         0,
       ),
     ];

@@ -5,7 +5,9 @@ import '../models/note.dart';
 import '../services/note_store.dart';
 import '../theme.dart';
 import '../utils/format.dart';
+import '../widgets/choice_tab.dart';
 import '../widgets/dialogs.dart';
+import '../widgets/noot_logo.dart';
 import '../widgets/note_card.dart';
 import 'add_note_screen.dart';
 import 'detail_screen.dart';
@@ -31,6 +33,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  bool get _menyaring => _kategori != 'Semua' || _cari.text.trim().isNotEmpty;
+
   List<Note> _daftar() {
     final kata = _cari.text.trim().toLowerCase();
     final hasil = _store.notes.where((n) {
@@ -48,6 +52,13 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
     return hasil;
+  }
+
+  void _reset() {
+    setState(() {
+      _cari.clear();
+      _kategori = 'Semua';
+    });
   }
 
   Future<void> _tambah() async {
@@ -82,6 +93,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _pesanHapus(ScaffoldMessenger.of(context), note);
   }
 
+  Future<void> _menu(Note note) async {
+    final aksi = await tampilMenuCatatan(context, note.title);
+    if (!mounted) return;
+    if (aksi == AksiCatatan.ubah) _ubah(note);
+    if (aksi == AksiCatatan.hapus) _hapus(note);
+  }
+
   void _pesan(ScaffoldMessengerState messenger, String teks) {
     messenger
       ..hideCurrentSnackBar()
@@ -96,11 +114,49 @@ class _HomeScreenState extends State<HomeScreen> {
           content: Text('"${note.title}" dihapus'),
           action: SnackBarAction(
             label: 'Urungkan',
-            textColor: const Color(0xFF9CC2FF),
             onPressed: () => _store.add(note),
           ),
         ),
       );
+  }
+
+  /// Membagi kartu ke dua kolom. Setiap kartu masuk ke kolom yang lebih pendek,
+  /// dengan tinggi diperkirakan dari panjang judul dan isinya.
+  Widget _susunan(List<Note> daftar) {
+    final kiri = <Widget>[];
+    final kanan = <Widget>[];
+    var tinggiKiri = 0.0;
+    var tinggiKanan = 0.0;
+
+    for (final note in daftar) {
+      final taksiran = 84 +
+          (note.title.length > 22 ? 24 : 0) +
+          (note.content.length > 220 ? 220 : note.content.length) * 0.55;
+      final kartu = Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: NoteCard(
+          note: note,
+          onTap: () => _buka(note),
+          onLongPress: () => _menu(note),
+        ),
+      );
+      if (tinggiKiri <= tinggiKanan) {
+        kiri.add(kartu);
+        tinggiKiri += taksiran;
+      } else {
+        kanan.add(kartu);
+        tinggiKanan += taksiran;
+      }
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: Column(children: kiri)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(children: kanan)),
+      ],
+    );
   }
 
   @override
@@ -108,252 +164,150 @@ class _HomeScreenState extends State<HomeScreen> {
     final kategori = ['Semua', ...kKategori];
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _tambah,
+        backgroundColor: NootColors.yellow,
+        foregroundColor: NootColors.navy,
+        elevation: 2,
+        highlightElevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        icon: const Icon(Icons.edit_outlined),
+        label: Text(
+          'Catatan baru',
+          style: nootText(17, weight: FontWeight.w700),
+        ),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
             final daftar = _daftar();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            final total = _store.notes.length;
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 112),
               children: [
-                const _Sapaan(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _cari,
-                          onChanged: (_) => setState(() {}),
-                          decoration: nootInput(
-                            'Cari catatan...',
-                            prefix: const Icon(Icons.search_rounded),
-                            suffix: _cari.text.isEmpty
-                                ? null
-                                : IconButton(
-                                    tooltip: 'Hapus pencarian',
-                                    icon: const Icon(Icons.close_rounded),
-                                    onPressed: () =>
-                                        setState(() => _cari.clear()),
-                                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            formatHariTanggal(DateTime.now()),
+                            style: nootText(
+                              15,
+                              style: FontStyle.italic,
+                              color: NootColors.muted,
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      PopupMenuButton<_Urutan>(
-                        tooltip: 'Urutkan catatan',
-                        color: Colors.white,
-                        onSelected: (v) => setState(() => _urutan = v),
-                        itemBuilder: (_) => [
-                          CheckedPopupMenuItem(
-                            value: _Urutan.terbaru,
-                            checked: _urutan == _Urutan.terbaru,
-                            child: const Text('Terbaru'),
-                          ),
-                          CheckedPopupMenuItem(
-                            value: _Urutan.prioritas,
-                            checked: _urutan == _Urutan.prioritas,
-                            child: const Text('Prioritas tertinggi'),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Catatan',
+                            style: nootText(
+                              42,
+                              weight: FontWeight.w700,
+                              height: 1.05,
+                              letterSpacing: -0.5,
+                            ),
                           ),
                         ],
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: NootColors.line),
-                          ),
-                          child: const Icon(Icons.tune_rounded),
-                        ),
                       ),
-                    ],
+                    ),
+                    const NootLogo(size: 44, radius: 10),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _cari,
+                  onChanged: (_) => setState(() {}),
+                  textInputAction: TextInputAction.search,
+                  style: nootText(17),
+                  decoration: nootInput(
+                    'Cari judul atau isi catatan',
+                    prefix: const Icon(
+                      Icons.search_rounded,
+                      color: NootColors.muted,
+                    ),
+                    suffix: _cari.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Hapus pencarian',
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(_cari.clear),
+                          ),
                   ),
                 ),
+                const SizedBox(height: 14),
                 SizedBox(
                   height: 40,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: kategori.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) => _Chip(
+                    itemBuilder: (_, i) => ChoiceTab(
                       label: kategori[i],
-                      terpilih: kategori[i] == _kategori,
+                      selected: kategori[i] == _kategori,
                       onTap: () => setState(() => _kategori = kategori[i]),
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
-                Expanded(
-                  child: daftar.isEmpty
-                      ? _Kosong(adaCatatan: _store.notes.isNotEmpty)
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                          itemCount: daftar.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (_, i) {
-                            final note = daftar[i];
-                            return NoteCard(
-                              note: note,
-                              onTap: () => _buka(note),
-                              onEdit: () => _ubah(note),
-                              onDelete: () => _hapus(note),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _tambah,
-        tooltip: 'Tambah catatan',
-        backgroundColor: NootColors.primary,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add_rounded, size: 30),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFFDCE9FF),
-        onDestinationSelected: (i) {
-          if (i == 0) return;
-          _pesan(
-            ScaffoldMessenger.of(context),
-            i == 1
-                ? 'Arsip belum tersedia di versi ini'
-                : 'Profil belum tersedia di versi ini',
-          );
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Beranda',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2_rounded),
-            label: 'Arsip',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profil',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Sapaan extends StatelessWidget {
-  const _Sapaan();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text(
-                      '${salam(DateTime.now())},',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: NootColors.muted,
+                    Expanded(
+                      child: Text(
+                        _menyaring
+                            ? '${daftar.length} dari $total catatan'
+                            : '$total catatan',
+                        style: nootText(
+                          15,
+                          style: FontStyle.italic,
+                          color: NootColors.muted,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.waving_hand_rounded,
-                      size: 16,
-                      color: Color(0xFFE0A100),
+                    PopupMenuButton<_Urutan>(
+                      tooltip: 'Urutkan catatan',
+                      initialValue: _urutan,
+                      onSelected: (v) => setState(() => _urutan = v),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: _Urutan.terbaru,
+                          child: Text('Terbaru', style: nootText(16)),
+                        ),
+                        PopupMenuItem(
+                          value: _Urutan.prioritas,
+                          child: Text('Prioritas tertinggi', style: nootText(16)),
+                        ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _urutan == _Urutan.terbaru
+                                  ? 'Terbaru'
+                                  : 'Prioritas',
+                              style: nootText(15, weight: FontWeight.w700),
+                            ),
+                            const Icon(Icons.arrow_drop_down, size: 22),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  kUserName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Apa yang mau kamu catat hari ini?',
-                  style: TextStyle(fontSize: 13.5, color: NootColors.muted),
-                ),
+                const SizedBox(height: 4),
+                if (daftar.isEmpty)
+                  _Kosong(adaCatatan: total > 0, onReset: _reset)
+                else
+                  _susunan(daftar),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: const Color(0xFFDCE9FF),
-            child: Text(
-              kUserName.isEmpty ? 'N' : kUserName[0].toUpperCase(),
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-                color: NootColors.primaryDark,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.label,
-    required this.terpilih,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool terpilih;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: terpilih ? NootColors.primary : Colors.white,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: terpilih ? NootColors.primary : NootColors.line,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: terpilih ? Colors.white : NootColors.ink,
-              ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -361,38 +315,34 @@ class _Chip extends StatelessWidget {
 }
 
 class _Kosong extends StatelessWidget {
-  const _Kosong({required this.adaCatatan});
+  const _Kosong({required this.adaCatatan, required this.onReset});
 
   final bool adaCatatan;
+  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              adaCatatan ? Icons.search_off_rounded : Icons.edit_note_rounded,
-              size: 72,
-              color: NootColors.primary.withAlpha(110),
-            ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 48, 0, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            adaCatatan ? 'Tidak ada catatan yang cocok' : 'Belum ada catatan',
+            style: nootText(26, weight: FontWeight.w700, height: 1.15),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            adaCatatan
+                ? 'Coba kata kunci lain, atau tampilkan semua kategori.'
+                : 'Tekan Catatan baru di kanan bawah untuk menulis yang pertama.',
+            style: nootText(17, color: NootColors.muted, height: 1.4),
+          ),
+          if (adaCatatan) ...[
             const SizedBox(height: 12),
-            Text(
-              adaCatatan ? 'Catatan tidak ditemukan' : 'Belum ada catatan',
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              adaCatatan
-                  ? 'Coba kata kunci atau kategori lain.'
-                  : 'Ketuk tombol + untuk mulai mencatat.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: NootColors.muted),
-            ),
+            TextButton(onPressed: onReset, child: const Text('Reset pencarian')),
           ],
-        ),
+        ],
       ),
     );
   }

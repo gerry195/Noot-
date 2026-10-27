@@ -8,8 +8,9 @@ import '../utils/format.dart';
 import '../widgets/dialogs.dart';
 import 'add_note_screen.dart';
 
-/// Menampilkan isi satu catatan. Menutup halaman dengan catatan yang dihapus
-/// sebagai hasil, supaya Beranda bisa menawarkan "Urungkan".
+/// Menampilkan isi satu catatan di atas bidang warna catatan itu. Saat catatan
+/// dihapus, halaman menutup dengan catatan tersebut sebagai hasil, supaya
+/// Beranda bisa menawarkan "Urungkan".
 class DetailScreen extends StatelessWidget {
   const DetailScreen({super.key, required this.noteId});
 
@@ -47,7 +48,9 @@ class DetailScreen extends StatelessWidget {
         final prioritas = note.priority.clamp(0, 2).toInt();
 
         return Scaffold(
+          backgroundColor: tone.bg,
           appBar: AppBar(
+            backgroundColor: tone.bg,
             title: const Text('Detail Catatan'),
             actions: [
               IconButton(
@@ -58,7 +61,6 @@ class DetailScreen extends StatelessWidget {
               IconButton(
                 tooltip: 'Hapus catatan',
                 icon: const Icon(Icons.delete_outline_rounded),
-                color: NootColors.danger,
                 onPressed: () => _hapus(context, note),
               ),
               const SizedBox(width: 4),
@@ -66,106 +68,44 @@ class DetailScreen extends StatelessWidget {
           ),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: tone.bg,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(170),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            kIkonKategori[note.category] ?? Icons.notes_rounded,
-                            color: tone.accent,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                note.title,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  _Pil(
-                                    teks: note.category,
-                                    warna: tone.accent,
-                                  ),
-                                  _Pil(
-                                    teks: 'Prioritas ${kPrioritasNama[prioritas]}',
-                                    warna: kPrioritasWarna[prioritas],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  Text(
+                    note.title,
+                    style: nootText(
+                      36,
+                      weight: FontWeight.w700,
+                      height: 1.12,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 18,
-                        color: NootColors.muted,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        formatTanggal(note.createdAt),
-                        style: const TextStyle(color: NootColors.muted),
-                      ),
-                      const SizedBox(width: 18),
-                      const Icon(
-                        Icons.schedule_rounded,
-                        size: 18,
-                        color: NootColors.muted,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        formatJam(note.createdAt),
-                        style: const TextStyle(color: NootColors.muted),
-                      ),
-                    ],
+                  const SizedBox(height: 14),
+                  Text(
+                    '${note.category} · Prioritas ${kPrioritasNama[prioritas].toLowerCase()}',
+                    style: nootText(17, weight: FontWeight.w700),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Divider(height: 1, color: NootColors.line),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${formatTanggal(note.createdAt)}, ${formatJam(note.createdAt)}',
+                    style: nootText(16, style: FontStyle.italic),
                   ),
-                  if (note.content.isEmpty)
-                    const Text(
-                      'Tidak ada isi catatan.',
-                      style: TextStyle(
-                        color: NootColors.muted,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    )
-                  else
+                  const SizedBox(height: 28),
+                  if (note.content.isEmpty) ...[
+                    Text(
+                      'Catatan ini belum punya isi.',
+                      style: nootText(18, style: FontStyle.italic),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => _ubah(context, note),
+                      child: const Text('Tulis isi catatan'),
+                    ),
+                  ] else
                     SelectableText(
                       note.content,
-                      style: const TextStyle(fontSize: 16, height: 1.6),
+                      style: nootText(19, height: 1.65),
                     ),
                 ],
               ),
@@ -173,39 +113,6 @@ class DetailScreen extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _Pil extends StatelessWidget {
-  const _Pil({required this.teks, required this.warna});
-
-  final String teks;
-  final Color warna;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(190),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: warna, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            teks,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
     );
   }
 }

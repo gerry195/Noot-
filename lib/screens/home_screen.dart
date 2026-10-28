@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../constants.dart';
+import '../data/notes_store.dart';
 import '../models/note.dart';
-import '../services/note_store.dart';
-import '../theme.dart';
-import '../utils/format.dart';
-import '../widgets/choice_tab.dart';
-import '../widgets/dialogs.dart';
-import '../widgets/noot_logo.dart';
-import '../widgets/note_card.dart';
+import '../theme/app_theme.dart';
+import '../widgets/noot_widgets.dart';
 import 'add_note_screen.dart';
-import 'detail_screen.dart';
+import 'note_detail_screen.dart';
 
-enum _Urutan { terbaru, prioritas }
-
+/// Halaman 3: beranda, daftar catatan.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,220 +16,121 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _store = NoteStore.instance;
-  final _cari = TextEditingController();
-  String _kategori = 'Semua';
-  _Urutan _urutan = _Urutan.terbaru;
+  static const _filters = ['Semua', 'Penting', 'Pribadi', 'Kerja'];
+
+  final _store = NotesStore.instance;
+  final _search = TextEditingController();
+  String _filter = 'Semua';
 
   @override
   void dispose() {
-    _cari.dispose();
+    _search.dispose();
     super.dispose();
   }
 
-  bool get _menyaring => _kategori != 'Semua' || _cari.text.trim().isNotEmpty;
-
-  List<Note> _daftar() {
-    final kata = _cari.text.trim().toLowerCase();
-    final hasil = _store.notes.where((n) {
-      final cocokKategori = _kategori == 'Semua' || n.category == _kategori;
-      final cocokKata = kata.isEmpty ||
-          n.title.toLowerCase().contains(kata) ||
-          n.content.toLowerCase().contains(kata);
-      return cocokKategori && cocokKata;
+  List<Note> _visible() {
+    final q = _search.text.trim().toLowerCase();
+    return _store.notes.where((n) {
+      final okFilter = switch (_filter) {
+        'Semua' => true,
+        'Penting' => n.priority == Priority.tinggi,
+        _ => n.category == _filter,
+      };
+      final okQuery = q.isEmpty ||
+          n.title.toLowerCase().contains(q) ||
+          n.content.toLowerCase().contains(q);
+      return okFilter && okQuery;
     }).toList();
-
-    if (_urutan == _Urutan.prioritas) {
-      hasil.sort((a, b) {
-        final p = b.priority.compareTo(a.priority);
-        return p != 0 ? p : b.createdAt.compareTo(a.createdAt);
-      });
-    }
-    return hasil;
   }
 
-  void _reset() {
-    setState(() {
-      _cari.clear();
-      _kategori = 'Semua';
-    });
-  }
+  void _openAdd() => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const AddNoteScreen()),
+      );
 
-  Future<void> _tambah() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final tersimpan = await Navigator.of(context).push<Note>(
-      MaterialPageRoute(builder: (_) => const AddNoteScreen()),
-    );
-    if (tersimpan != null) _pesan(messenger, 'Catatan disimpan');
-  }
+  void _openDetail(Note n) => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => NoteDetailScreen(noteId: n.id)),
+      );
 
-  Future<void> _ubah(Note note) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final tersimpan = await Navigator.of(context).push<Note>(
-      MaterialPageRoute(builder: (_) => AddNoteScreen(note: note)),
-    );
-    if (tersimpan != null) _pesan(messenger, 'Perubahan disimpan');
-  }
-
-  Future<void> _buka(Note note) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final dihapus = await Navigator.of(context).push<Note>(
-      MaterialPageRoute(builder: (_) => DetailScreen(noteId: note.id)),
-    );
-    if (dihapus != null) _pesanHapus(messenger, dihapus);
-  }
-
-  Future<void> _hapus(Note note) async {
-    final yakin = await konfirmasiHapus(context, note.title);
-    if (yakin != true || !mounted) return;
-    await _store.remove(note.id);
-    if (!mounted) return;
-    _pesanHapus(ScaffoldMessenger.of(context), note);
-  }
-
-  Future<void> _menu(Note note) async {
-    final aksi = await tampilMenuCatatan(context, note.title);
-    if (!mounted) return;
-    if (aksi == AksiCatatan.ubah) _ubah(note);
-    if (aksi == AksiCatatan.hapus) _hapus(note);
-  }
-
-  void _pesan(ScaffoldMessengerState messenger, String teks) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(teks)));
-  }
-
-  void _pesanHapus(ScaffoldMessengerState messenger, Note note) {
-    messenger
+  void _comingSoon() {
+    ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text('"${note.title}" dihapus'),
-          action: SnackBarAction(
-            label: 'Urungkan',
-            onPressed: () => _store.add(note),
-          ),
-        ),
+        const SnackBar(content: Text('Halaman ini belum tersedia di versi ini.')),
       );
-  }
-
-  /// Membagi kartu ke dua kolom. Setiap kartu masuk ke kolom yang lebih pendek,
-  /// dengan tinggi diperkirakan dari panjang judul dan isinya.
-  Widget _susunan(List<Note> daftar) {
-    final kiri = <Widget>[];
-    final kanan = <Widget>[];
-    var tinggiKiri = 0.0;
-    var tinggiKanan = 0.0;
-
-    for (final note in daftar) {
-      final taksiran = 84 +
-          (note.title.length > 22 ? 24 : 0) +
-          (note.content.length > 220 ? 220 : note.content.length) * 0.55;
-      final kartu = Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: NoteCard(
-          note: note,
-          onTap: () => _buka(note),
-          onLongPress: () => _menu(note),
-        ),
-      );
-      if (tinggiKiri <= tinggiKanan) {
-        kiri.add(kartu);
-        tinggiKiri += taksiran;
-      } else {
-        kanan.add(kartu);
-        tinggiKanan += taksiran;
-      }
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: Column(children: kiri)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(children: kanan)),
-      ],
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final kategori = ['Semua', ...kKategori];
-
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _tambah,
-        backgroundColor: NootColors.yellow,
-        foregroundColor: NootColors.navy,
-        elevation: 2,
-        highlightElevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        icon: const Icon(Icons.edit_outlined),
-        label: Text(
-          'Catatan baru',
-          style: nootText(17, weight: FontWeight.w700),
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openAdd,
+        tooltip: 'Tambah catatan',
+        backgroundColor: NootColors.blue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add_rounded, size: 30),
       ),
+      bottomNavigationBar: _BottomBar(onOther: _comingSoon),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: _store,
           builder: (context, _) {
-            final daftar = _daftar();
-            final total = _store.notes.length;
-
+            final all = _store.notes;
+            final shown = _visible();
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 112),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            formatHariTanggal(DateTime.now()),
-                            style: nootText(
-                              15,
-                              style: FontStyle.italic,
-                              color: NootColors.muted,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Catatan',
-                            style: nootText(
-                              42,
-                              weight: FontWeight.w700,
-                              height: 1.05,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
+                  children: const [
+                    NootLogo(size: 34),
+                    SizedBox(width: 10),
+                    Text(
+                      'Noot',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
                       ),
                     ),
-                    const NootLogo(size: 44, radius: 10),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
+                const Text(
+                  'Halo, $kNamaPengguna',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: NootColors.muted,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Apa yang ingin kamu catat hari ini?',
+                  style: TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.7,
+                    height: 1.18,
+                  ),
+                ),
+                const SizedBox(height: 18),
                 TextField(
-                  controller: _cari,
+                  controller: _search,
                   onChanged: (_) => setState(() {}),
                   textInputAction: TextInputAction.search,
-                  style: nootText(17),
-                  decoration: nootInput(
-                    'Cari judul atau isi catatan',
-                    prefix: const Icon(
-                      Icons.search_rounded,
-                      color: NootColors.muted,
-                    ),
-                    suffix: _cari.text.isEmpty
+                  decoration: InputDecoration(
+                    hintText: 'Cari catatan',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 22),
+                    suffixIcon: _search.text.isEmpty
                         ? null
                         : IconButton(
                             tooltip: 'Hapus pencarian',
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: () => setState(_cari.clear),
+                            icon: const Icon(Icons.close_rounded, size: 20),
+                            onPressed: () => setState(_search.clear),
                           ),
                   ),
                 ),
@@ -244,67 +139,60 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 40,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: kategori.length,
+                    itemCount: _filters.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) => ChoiceTab(
-                      label: kategori[i],
-                      selected: kategori[i] == _kategori,
-                      onTap: () => setState(() => _kategori = kategori[i]),
+                    itemBuilder: (_, i) => _FilterChip(
+                      label: _filters[i],
+                      selected: _filters[i] == _filter,
+                      onTap: () => setState(() => _filter = _filters[i]),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 18),
+                _SummaryCard(notes: all),
+                const SizedBox(height: 26),
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        _menyaring
-                            ? '${daftar.length} dari $total catatan'
-                            : '$total catatan',
-                        style: nootText(
-                          15,
-                          style: FontStyle.italic,
-                          color: NootColors.muted,
-                        ),
-                      ),
+                    const Text(
+                      'Catatan terbaru',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                     ),
-                    PopupMenuButton<_Urutan>(
-                      tooltip: 'Urutkan catatan',
-                      initialValue: _urutan,
-                      onSelected: (v) => setState(() => _urutan = v),
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: _Urutan.terbaru,
-                          child: Text('Terbaru', style: nootText(16)),
-                        ),
-                        PopupMenuItem(
-                          value: _Urutan.prioritas,
-                          child: Text('Prioritas tertinggi', style: nootText(16)),
-                        ),
-                      ],
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _urutan == _Urutan.terbaru
-                                  ? 'Terbaru'
-                                  : 'Prioritas',
-                              style: nootText(15, weight: FontWeight.w700),
-                            ),
-                            const Icon(Icons.arrow_drop_down, size: 22),
-                          ],
-                        ),
-                      ),
+                    const Spacer(),
+                    Text(
+                      '${shown.length} catatan',
+                      style: const TextStyle(color: NootColors.muted, fontSize: 13),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                if (daftar.isEmpty)
-                  _Kosong(adaCatatan: total > 0, onReset: _reset)
+                const SizedBox(height: 12),
+                if (shown.isEmpty)
+                  _EmptyState(
+                    searching: _search.text.trim().isNotEmpty,
+                    filter: _filter,
+                    onAdd: _openAdd,
+                  )
                 else
-                  _susunan(daftar),
+                  for (var i = 0; i < shown.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey(shown[i].id),
+                        tween: Tween(begin: 0, end: 1),
+                        duration: Duration(milliseconds: 280 + i * 60),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, t, child) => Opacity(
+                          opacity: t,
+                          child: Transform.translate(
+                            offset: Offset(0, 14 * (1 - t)),
+                            child: child,
+                          ),
+                        ),
+                        child: NoteCard(
+                          note: shown[i],
+                          onTap: () => _openDetail(shown[i]),
+                        ),
+                      ),
+                    ),
               ],
             );
           },
@@ -314,35 +202,229 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _Kosong extends StatelessWidget {
-  const _Kosong({required this.adaCatatan, required this.onReset});
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
-  final bool adaCatatan;
-  final VoidCallback onReset;
+  @override
+  Widget build(BuildContext context) => Material(
+        color: selected ? NootColors.blue : NootColors.surface,
+        borderRadius: BorderRadius.circular(99),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(99),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : NootColors.muted,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+/// Ringkasan dihitung dari daftar catatan yang ada, bukan angka tetap.
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.notes});
+  final List<Note> notes;
+
+  int _count(Priority p) => notes.where((n) => n.priority == p).length;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 48, 0, 0),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(
+        color: NootColors.blue,
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            adaCatatan ? 'Tidak ada catatan yang cocok' : 'Belum ada catatan',
-            style: nootText(26, weight: FontWeight.w700, height: 1.15),
+          const Text(
+            'Semua catatanmu',
+            style: TextStyle(color: Color(0xFFD5E1FF), fontSize: 14),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            adaCatatan
-                ? 'Coba kata kunci lain, atau tampilkan semua kategori.'
-                : 'Tekan Catatan baru di kanan bawah untuk menulis yang pertama.',
-            style: nootText(17, color: NootColors.muted, height: 1.4),
+            '${notes.length} catatan',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1,
+              height: 1.1,
+            ),
           ),
-          if (adaCatatan) ...[
-            const SizedBox(height: 12),
-            TextButton(onPressed: onReset, child: const Text('Reset pencarian')),
-          ],
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _Stat(count: _count(Priority.tinggi), label: 'Tinggi'),
+              _Stat(count: _count(Priority.sedang), label: 'Sedang'),
+              _Stat(count: _count(Priority.rendah), label: 'Rendah'),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.count, required this.label});
+  final int count;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              'Prioritas ${label.toLowerCase()}',
+              style: const TextStyle(color: Color(0xFFD5E1FF), fontSize: 12.5),
+            ),
+          ],
+        ),
+      );
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.searching,
+    required this.filter,
+    required this.onAdd,
+  });
+  final bool searching;
+  final String filter;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = searching
+        ? 'Tidak ada catatan yang cocok'
+        : 'Belum ada catatan di "$filter"';
+    final body = searching
+        ? 'Coba kata kunci lain, atau ganti kategori di atas.'
+        : 'Tulis catatan pertamamu, nanti muncul di sini.';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: NootColors.surface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(body, style: const TextStyle(color: NootColors.muted, height: 1.45)),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: onAdd,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: NootColors.blue,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            child: const Text('Buat catatan'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.onOther});
+  final VoidCallback onOther;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: NootColors.surface,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                const _NavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Beranda',
+                  active: true,
+                ),
+                _NavItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Arsip',
+                  onTap: onOther,
+                ),
+                _NavItem(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Profil',
+                  onTap: onOther,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    this.active = false,
+    this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? NootColors.blue : const Color(0xFF7D8BA3);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

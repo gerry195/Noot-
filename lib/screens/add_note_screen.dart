@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../constants.dart';
+import '../data/notes_store.dart';
 import '../models/note.dart';
-import '../services/note_store.dart';
-import '../theme.dart';
-import '../widgets/choice_tab.dart';
+import '../theme/app_theme.dart';
+import '../widgets/noot_widgets.dart';
 
-/// Form catatan. Dipakai untuk menambah, dan untuk mengubah bila [note] diisi.
-/// Kotak judul dan isi langsung berwarna sesuai pilihan Warna, jadi yang tampak
-/// saat menulis sama dengan kartu di Beranda.
+/// Halaman 4: tambah catatan. Dipakai juga untuk mengedit bila [note] diisi.
 class AddNoteScreen extends StatefulWidget {
   const AddNoteScreen({super.key, this.note});
-
   final Note? note;
 
   @override
@@ -20,280 +15,227 @@ class AddNoteScreen extends StatefulWidget {
 }
 
 class _AddNoteScreenState extends State<AddNoteScreen> {
-  late final TextEditingController _judul;
-  late final TextEditingController _isi;
-  String _kategori = kKategoriAwal;
-  int _warna = 0;
-  int _prioritas = 1;
-  bool _judulGalat = false;
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _title;
+  late final TextEditingController _content;
+  String? _category;
+  late int _colorIndex;
+  late Priority _priority;
 
-  bool get _mengubah => widget.note != null;
+  bool get _editing => widget.note != null;
 
   @override
   void initState() {
     super.initState();
     final n = widget.note;
-    _judul = TextEditingController(text: n?.title ?? '');
-    _isi = TextEditingController(text: n?.content ?? '');
-    _kategori = n?.category ?? kKategoriAwal;
-    _warna = n?.tone ?? 0;
-    _prioritas = n?.priority ?? 1;
+    _title = TextEditingController(text: n?.title ?? '');
+    _content = TextEditingController(text: n?.content ?? '');
+    _category = n?.category;
+    _colorIndex = n?.colorIndex ?? 0;
+    _priority = n?.priority ?? Priority.sedang;
   }
 
   @override
   void dispose() {
-    _judul.dispose();
-    _isi.dispose();
+    _title.dispose();
+    _content.dispose();
     super.dispose();
   }
 
-  Future<void> _simpan() async {
-    final judul = _judul.text.trim();
-    if (judul.isEmpty) {
-      setState(() => _judulGalat = true);
-      return;
-    }
-
-    final sekarang = DateTime.now();
-    final lama = widget.note;
-    final note = Note(
-      id: lama?.id ?? sekarang.microsecondsSinceEpoch.toString(),
-      title: judul,
-      content: _isi.text.trim(),
-      category: _kategori,
-      tone: _warna,
-      priority: _prioritas,
-      createdAt: lama?.createdAt ?? sekarang,
-    );
-
-    if (lama == null) {
-      await NoteStore.instance.add(note);
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    final store = NotesStore.instance;
+    final title = _title.text.trim();
+    final content = _content.text.trim();
+    final category = _category!;
+    if (_editing) {
+      store.update(
+        widget.note!,
+        title: title,
+        content: content,
+        category: category,
+        colorIndex: _colorIndex,
+        priority: _priority,
+      );
     } else {
-      await NoteStore.instance.update(note);
+      store.add(
+        title: title,
+        content: content,
+        category: category,
+        colorIndex: _colorIndex,
+        priority: _priority,
+      );
     }
-    if (!mounted) return;
-    Navigator.of(context).pop(note);
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(_editing ? 'Perubahan disimpan' : 'Catatan disimpan')),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
-    final tone = toneOf(_warna);
-
     return Scaffold(
-      appBar: AppBar(title: Text(_mengubah ? 'Ubah Catatan' : 'Tambah Catatan')),
+      appBar: AppBar(title: Text(_editing ? 'Ubah Catatan' : 'Tambah Catatan')),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _Label('Judul catatan'),
+                TextFormField(
+                  controller: _title,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(hintText: 'Masukkan judul catatan'),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Judul tidak boleh kosong' : null,
+                ),
+                const SizedBox(height: 20),
+                const _Label('Isi catatan'),
+                TextFormField(
+                  controller: _content,
+                  minLines: 5,
+                  maxLines: 9,
+                  keyboardType: TextInputType.multiline,
+                  decoration: const InputDecoration(hintText: 'Tulis catatan Anda di sini...'),
+                ),
+                const SizedBox(height: 20),
+                const _Label('Kategori'),
+                DropdownButtonFormField<String>(
+                  value: _category,
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(14),
+                  dropdownColor: NootColors.surface,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  hint: const Text('Pilih kategori'),
+                  items: [
+                    for (final c in noteCategories)
+                      DropdownMenuItem(value: c, child: Text(c)),
+                  ],
+                  onChanged: (v) => setState(() => _category = v),
+                  validator: (v) => v == null ? 'Pilih satu kategori' : null,
+                ),
+                const SizedBox(height: 20),
+                const _Label('Warna'),
+                Row(
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOut,
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                      decoration: BoxDecoration(
-                        color: tone.bg,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Judul catatan',
-                            style: nootText(14.5, style: FontStyle.italic),
-                          ),
-                          TextField(
-                            controller: _judul,
-                            textCapitalization: TextCapitalization.sentences,
-                            textInputAction: TextInputAction.next,
-                            inputFormatters: [
-                              LengthLimitingTextInputFormatter(60),
-                            ],
-                            onChanged: (_) {
-                              if (_judulGalat) {
-                                setState(() => _judulGalat = false);
-                              }
-                            },
-                            style: nootText(
-                              26,
-                              weight: FontWeight.w700,
-                              height: 1.2,
-                            ),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 8),
-                              hintText: 'Masukkan judul catatan',
-                              hintStyle: nootText(
-                                26,
-                                weight: FontWeight.w700,
-                                height: 1.2,
-                                color: NootColors.hint,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            'Isi catatan',
-                            style: nootText(14.5, style: FontStyle.italic),
-                          ),
-                          TextField(
-                            controller: _isi,
-                            minLines: 7,
-                            maxLines: null,
-                            keyboardType: TextInputType.multiline,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: nootText(18, height: 1.5),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 8),
-                              hintText: 'Tulis catatanmu di sini',
-                              hintStyle: nootText(
-                                18,
-                                height: 1.5,
-                                color: NootColors.hint,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_judulGalat)
+                    for (var i = 0; i < noteSwatches.length; i++)
                       Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          'Judul wajib diisi.',
-                          style: nootText(15, color: NootColors.danger),
+                        padding: const EdgeInsets.only(right: 12),
+                        child: _SwatchDot(
+                          swatch: noteSwatches[i],
+                          selected: i == _colorIndex,
+                          onTap: () => setState(() => _colorIndex = i),
                         ),
                       ),
-                    const SizedBox(height: 24),
-                    const _Judul('Kategori'),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final k in kKategori)
-                          ChoiceTab(
-                            label: k,
-                            selected: k == _kategori,
-                            onTap: () => setState(() => _kategori = k),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const _Judul('Warna'),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        for (var i = 0; i < kTones.length; i++)
-                          _Swatch(
-                            tone: kTones[i],
-                            terpilih: i == _warna,
-                            onTap: () => setState(() => _warna = i),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const _Judul('Prioritas'),
-                    Row(
-                      children: [
-                        for (var i = 0; i < kPrioritasNama.length; i++) ...[
-                          if (i > 0) const SizedBox(width: 8),
-                          Expanded(
-                            child: ChoiceTab(
-                              label: kPrioritasNama[i],
-                              selected: i == _prioritas,
-                              onTap: () => setState(() => _prioritas = i),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Prioritas tinggi diberi sudut terlipat di daftar.',
-                      style: nootText(
-                        14.5,
-                        style: FontStyle.italic,
-                        color: NootColors.muted,
-                      ),
-                    ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 20),
+                const _Label('Prioritas'),
+                _PrioritySelector(
+                  value: _priority,
+                  onChanged: (p) => setState(() => _priority = p),
+                ),
+                const SizedBox(height: 32),
+                PrimaryButton(label: 'Simpan', onPressed: _save),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: FilledButton(
-                onPressed: _simpan,
-                child: Text(_mengubah ? 'Simpan perubahan' : 'Simpan'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Judul extends StatelessWidget {
-  const _Judul(this.teks);
-
-  final String teks;
+class _Label extends StatelessWidget {
+  const _Label(this.text);
+  final String text;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(teks, style: nootText(17, weight: FontWeight.w700)),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      );
 }
 
-class _Swatch extends StatelessWidget {
-  const _Swatch({
-    required this.tone,
-    required this.terpilih,
-    required this.onTap,
-  });
-
-  final NoteTone tone;
-  final bool terpilih;
+class _SwatchDot extends StatelessWidget {
+  const _SwatchDot({required this.swatch, required this.selected, required this.onTap});
+  final NoteSwatch swatch;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: terpilih,
-      label: 'Warna ${tone.name}',
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: tone.bg,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: terpilih ? NootColors.navy : NootColors.line,
-              width: terpilih ? 2.5 : 1,
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        label: 'Warna ${swatch.name}',
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: swatch.solid,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? NootColors.ink : Colors.transparent,
+                width: 2.5,
+              ),
             ),
+            child: selected
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                : null,
           ),
-          child: terpilih
-              ? const Icon(Icons.check_rounded, color: NootColors.navy, size: 24)
-              : null,
         ),
+      );
+}
+
+class _PrioritySelector extends StatelessWidget {
+  const _PrioritySelector({required this.value, required this.onChanged});
+  final Priority value;
+  final ValueChanged<Priority> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    // Urutan tampil mengikuti rancangan: Rendah, Sedang, Tinggi.
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: NootColors.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          for (final p in Priority.values)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(p),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: p == value ? NootColors.blue : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Text(
+                    p.label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: p == value ? Colors.white : NootColors.muted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

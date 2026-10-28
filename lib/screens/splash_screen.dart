@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-import '../theme.dart';
-import '../widgets/noot_logo.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../theme/app_theme.dart';
+import '../widgets/noot_widgets.dart';
 import 'login_screen.dart';
 
-/// Splash: latar navy yang sama dengan latar logo, jadi pensil tampak melayang.
-/// Seluruh isi berada tepat di tengah. Garis kuning di bawah nama tergambar dari
-/// kiri ke kanan seperti goresan pensil, lalu aplikasi pindah ke Login.
+/// Halaman 1: logo dan nama aplikasi.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -14,93 +15,98 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _muncul;
-  late final Animation<double> _garis;
+class _SplashScreenState extends State<SplashScreen> {
+  static const _duration = Duration(milliseconds: 2400);
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    );
-    _muncul = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0, 0.35, curve: Curves.easeOut),
-    );
-    _garis = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.25, 0.85, curve: Curves.easeInOut),
-    );
-    _controller.addStatusListener(_onStatus);
-    _controller.forward();
-  }
-
-  void _onStatus(AnimationStatus status) {
-    if (status != AnimationStatus.completed || !mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 350),
-        pageBuilder: (_, __, ___) => const LoginScreen(),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-      ),
-    );
+    _timer = Timer(_duration + const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 350),
+          pageBuilder: (_, __, ___) => const LoginScreen(),
+          transitionsBuilder: (_, a, __, child) =>
+              FadeTransition(opacity: a, child: child),
+        ),
+      );
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: NootColors.navy,
-      body: SizedBox.expand(
-        child: Center(
-          child: FadeTransition(
-            opacity: _muncul,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: NootColors.blue,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 0, 28, 40),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const NootLogo(size: 156),
-                const SizedBox(height: 8),
-                Text(
-                  'Noot',
-                  style: nootText(
-                    52,
-                    weight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: 104,
-                  height: 5,
-                  child: AnimatedBuilder(
-                    animation: _garis,
-                    builder: (_, __) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: _garis.value,
-                        child: const ColoredBox(color: NootColors.yellow),
-                      ),
+                const Spacer(flex: 5),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, t, child) => Opacity(
+                    opacity: t,
+                    child: Transform.translate(
+                      offset: Offset(0, 18 * (1 - t)),
+                      child: child,
                     ),
                   ),
+                  child: Column(
+                    children: const [
+                      NootLogo(size: 112),
+                      SizedBox(height: 28),
+                      Text(
+                        'Noot',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.5,
+                          height: 1,
+                        ),
+                      ),
+                      SizedBox(height: 14),
+                      Text(
+                        'Simpan setiap ide, rencana, dan momen berharga dalam satu tempat.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFFDCE6FF),
+                          fontSize: 16,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'catatan harian',
-                  style: nootText(
-                    17,
-                    style: FontStyle.italic,
-                    color: const Color(0xCCFFFFFF),
+                const Spacer(flex: 6),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: _duration,
+                  curve: Curves.easeInOut,
+                  builder: (context, t, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: SizedBox(
+                      width: 160,
+                      height: 6,
+                      child: LinearProgressIndicator(
+                        value: t,
+                        backgroundColor: const Color(0xFF4A7DF7),
+                        valueColor: const AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    ),
                   ),
                 ),
               ],

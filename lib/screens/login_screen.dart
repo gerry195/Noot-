@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../theme.dart';
-import '../widgets/noot_logo.dart';
+import '../theme/app_theme.dart';
+import '../widgets/noot_widgets.dart';
 import 'home_screen.dart';
 
-/// Login statis: hanya tampilan, tanpa autentikasi.
+/// Halaman 2: login statis. Hanya tampilan, belum ada autentikasi.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,145 +13,125 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _email = TextEditingController();
-  final _sandi = TextEditingController();
-  bool _sembunyikan = true;
+  bool _hidePassword = true;
 
-  @override
-  void dispose() {
-    _email.dispose();
-    _sandi.dispose();
-    super.dispose();
-  }
-
-  void _masuk() {
+  void _enter() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    const padAtas = 28.0;
-    const padBawah = 24.0;
-
     return Scaffold(
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, c) {
-            // Logo di atas, formulir di bawah. Saat keyboard muncul layar bisa digulir.
-            final tinggiMin = c.maxHeight > padAtas + padBawah
-                ? c.maxHeight - padAtas - padBawah
-                : 0.0;
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, padAtas, 24, padBawah),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: tinggiMin),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const NootLogo(size: 60, radius: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 32),
-                        Text(
-                          'Masuk untuk melanjutkan',
-                          style: nootText(
-                            36,
-                            weight: FontWeight.w700,
-                            height: 1.1,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Catatan harianmu tersimpan di perangkat ini.',
-                          style: nootText(
-                            18,
-                            color: NootColors.muted,
-                            height: 1.35,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        const _Label('Email'),
-                        TextField(
-                          controller: _email,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          style: nootText(17),
-                          decoration: nootInput('nama@email.com'),
-                        ),
-                        const SizedBox(height: 16),
-                        const _Label('Kata sandi'),
-                        TextField(
-                          controller: _sandi,
-                          obscureText: _sembunyikan,
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => _masuk(),
-                          style: nootText(17),
-                          decoration: nootInput(
-                            'Kata sandi',
-                            suffix: IconButton(
-                              tooltip: _sembunyikan
-                                  ? 'Tampilkan kata sandi'
-                                  : 'Sembunyikan kata sandi',
-                              icon: Icon(
-                                _sembunyikan
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                              onPressed: () =>
-                                  setState(() => _sembunyikan = !_sembunyikan),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: _masuk,
-                          child: const Text('Masuk'),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                          onPressed: _masuk,
-                          child: const Text('Lanjut dengan Google'),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Tampilan masuk ini belum terhubung ke akun mana pun. '
-                          'Kedua tombol langsung membuka catatanmu.',
-                          style: nootText(
-                            14.5,
-                            style: FontStyle.italic,
-                            color: NootColors.muted,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const NootLogo(size: 64),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Masuk ke Noot',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                      height: 1.1,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Lanjutkan mencatat dari tempat terakhir kamu berhenti.',
+                    style: TextStyle(color: NootColors.muted, fontSize: 15, height: 1.45),
+                  ),
+                  const SizedBox(height: 32),
+                  const _FieldLabel('Email'),
+                  TextField(
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: const InputDecoration(
+                      hintText: 'email@example.com',
+                      prefixIcon: Icon(Icons.mail_outline_rounded, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const _FieldLabel('Kata sandi'),
+                  TextField(
+                    obscureText: _hidePassword,
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan kata sandi',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                      suffixIcon: IconButton(
+                        tooltip: _hidePassword ? 'Tampilkan kata sandi' : 'Sembunyikan kata sandi',
+                        icon: Icon(
+                          _hidePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _hidePassword = !_hidePassword),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  PrimaryButton(label: 'Masuk', onPressed: _enter),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(color: Color(0xFFD8E0EE), thickness: 1)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('atau', style: TextStyle(color: NootColors.muted)),
+                      ),
+                      Expanded(child: Divider(color: Color(0xFFD8E0EE), thickness: 1)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: FilledButton(
+                      onPressed: _enter,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: NootColors.surface,
+                        foregroundColor: NootColors.ink,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: const Text('Masuk dengan Google'),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _Label extends StatelessWidget {
-  const _Label(this.teks);
-
-  final String teks;
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(teks, style: nootText(15.5, weight: FontWeight.w700)),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      );
 }

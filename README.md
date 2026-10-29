@@ -1,6 +1,6 @@
 # Noot
 
-Aplikasi catatan harian, Tugas Individu 02 (tahap perancangan). Isi project ini hanya UI, 5 halaman:
+Aplikasi catatan harian, Tugas Individual02 Pemongraman perangkat bergerak / RPL317 (tahap perancangan). Isi project ini hanya UI, 5 halaman:
 
 1. Splash Screen
 2. Login (statis, tanpa autentikasi)
